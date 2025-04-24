@@ -1,11 +1,14 @@
 use clap::{self, ArgMatches, Command};
-use std::fs::File;
+use std::fs::{ File, OpenOptions};
 use std::path::Path;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
+use std::io::Write;
 
+#[derive(Serialize, Deserialize)]
 struct Tarefa{
-    id: i32,
     tarefa: String,
-    descricao: String
+    estado: String,
 }
 
 fn cmd() -> ArgMatches{
@@ -46,7 +49,7 @@ fn cmd() -> ArgMatches{
 
 }
 
-fn create(path: &String)  {
+fn create(path: &String) {
     if !Path::new(path).exists() {
         let _f = File::create_new(path);
     }
@@ -55,14 +58,36 @@ fn create(path: &String)  {
     }
 }
 
+fn add(path: &String, item: String) {
+    let task = Tarefa {
+        tarefa: item,
+        estado: "incompleta".to_owned(),
+    };
 
+    let j = serde_json::to_string(&task).expect("Serialization error");
+    
+    let mut f = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(path)
+        .unwrap();
 
+    if let Err(e) = writeln!(&mut f,"{}", j) {
+        eprintln!("Erro ao escrever na lista: {}", e)
+    }
+}
+
+fn clear(path: &String) {
+    File::create(path).unwrap();
+}
 fn execute(mtch: ArgMatches) {
 
     match mtch.subcommand(){
         Some(("add", sub_matches)) => {
-            let item = sub_matches.get_one::<String>("item").expect("Item obrigatorio");
-            println!("Adicionando {:?}", item);
+            let item = sub_matches.get_one::<String>("item").expect("Item obrigatorio").to_string();
+            let path = sub_matches.get_one::<String>("path").expect("Path invalido");
+            add(path, item);
+ 
         },
         Some(("list", _)) => {
             println!("Listando")
@@ -75,8 +100,9 @@ fn execute(mtch: ArgMatches) {
             let index = sub_matches.get_one::<String>("index").expect("insira indice valido");
             println!("concluindo indice {}", index);
         }
-        Some(("clear", _)) => {
-            println!("Limpando")
+        Some(("clear", sub_matches)) => {
+            let path = sub_matches.get_one::<String>("path").expect("Path invalido");
+            clear(path);
         },
         Some(("create", sub_matches)) => {
             let path = sub_matches.get_one::<String>("path").expect("Path invalido");
@@ -87,7 +113,7 @@ fn execute(mtch: ArgMatches) {
         }
     }
 
-}
+}   
 
 fn main(){
     let matches = cmd();
