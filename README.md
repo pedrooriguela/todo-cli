@@ -1,2 +1,2 @@
 # todo-cli
-Simple todo cli app to start with rust
+Simple todo cli app with rust
